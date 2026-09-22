@@ -19,8 +19,73 @@ func PrepareRequest(from, to Protocol, input map[string]any, upstreamURL string)
 	if err != nil {
 		return nil, err
 	}
+	// Console's Responses endpoint is stricter than the public OpenAI schema:
+	// it rejects max_output_tokens below 16 and requires every array item to
+	// carry an explicit supported item type.  NewAPI occasionally omits the
+	// type when relaying a role/content message, so normalize those harmless
+	// variants at the provider boundary.
+	if to == Responses {
+		normalizeResponsesProviderRequest(output)
+	}
 	normalizeToolReasoningHistory(to, jsonutil.StringAt(output, "model"), upstreamURL, output)
 	return output, nil
+}
+
+func normalizeResponsesProviderRequest(input map[string]any) {
+	if input == nil {
+		return
+	}
+	if value, ok := input["max_output_tokens"]; ok {
+		switch number := value.(type) {
+		case int:
+			if number < 16 {
+				input["max_output_tokens"] = 16
+			}
+		case int64:
+			if number < 16 {
+				input["max_output_tokens"] = 16
+			}
+		case float64:
+			if number < 16 {
+				input["max_output_tokens"] = 16
+			}
+		}
+	}
+	items, ok := input["input"].([]any)
+	if !ok {
+		return
+	}
+	for _, raw := range items {
+		item, ok := raw.(map[string]any)
+		if !ok {
+			continue
+		}
+		if jsonutil.StringAt(item, "type") == "" && jsonutil.StringAt(item, "role") != "" {
+			item["type"] = "message"
+		}
+		if jsonutil.StringAt(item, "type") != "message" {
+			continue
+		}
+		if text, ok := item["content"].(string); ok {
+			item["content"] = []any{map[string]any{"type": "input_text", "text": text}}
+			continue
+		}
+		parts, ok := item["content"].([]any)
+		if !ok {
+			continue
+		}
+		for _, partRaw := range parts {
+			part, ok := partRaw.(map[string]any)
+			if !ok {
+				continue
+			}
+			// Assistant history is still input to the next turn. Console
+			// accepts input_text there, whereas output_text is output-only.
+			if jsonutil.StringAt(part, "type") == "output_text" {
+				part["type"] = "input_text"
+			}
+		}
+	}
 }
 
 // ForcedEffort applies an operator-configured thinking level to a prepared
