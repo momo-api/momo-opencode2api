@@ -41,3 +41,25 @@ func TestNormalizeResponsesProviderRequestKeepsValidLimit(t *testing.T) {
 		t.Fatalf("valid max_output_tokens changed to %#v", got)
 	}
 }
+
+func TestPrepareChatToResponsesNormalizesProviderBoundary(t *testing.T) {
+	input := map[string]any{
+		"model":                 "muse-spark-1.3-contributor-free",
+		"max_completion_tokens": float64(4),
+		"messages": []any{
+			map[string]any{"role": "assistant", "content": "prior"},
+			map[string]any{"role": "user", "content": "hello"},
+		},
+	}
+	out, err := PrepareRequest(Chat, Responses, input, "https://opencode.ai/zen")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := out["max_output_tokens"]; got != 16 {
+		t.Fatalf("max_output_tokens = %#v, want 16", got)
+	}
+	items := out["input"].([]any)
+	if got := items[0].(map[string]any)["type"]; got != "message" {
+		t.Fatalf("input[0].type = %#v, want message", got)
+	}
+}
