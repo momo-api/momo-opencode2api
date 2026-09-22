@@ -41,7 +41,6 @@ func TestNormalizeResponsesProviderRequestKeepsValidLimit(t *testing.T) {
 		t.Fatalf("valid max_output_tokens changed to %#v", got)
 	}
 }
-
 func TestPrepareChatToResponsesNormalizesProviderBoundary(t *testing.T) {
 	input := map[string]any{
 		"model":                 "muse-spark-1.3-contributor-free",
