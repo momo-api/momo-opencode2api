@@ -66,8 +66,12 @@ func normalizeResponsesProviderRequest(input map[string]any) {
 		if jsonutil.StringAt(item, "type") != "message" {
 			continue
 		}
+		contentType := "input_text"
+		if jsonutil.StringAt(item, "role") == "assistant" {
+			contentType = "output_text"
+		}
 		if text, ok := item["content"].(string); ok {
-			item["content"] = []any{map[string]any{"type": "input_text", "text": text}}
+			item["content"] = []any{map[string]any{"type": contentType, "text": text}}
 			continue
 		}
 		parts, ok := item["content"].([]any)
@@ -79,9 +83,9 @@ func normalizeResponsesProviderRequest(input map[string]any) {
 			if !ok {
 				continue
 			}
-			// Assistant history is still input to the next turn. Console
-			// accepts input_text there, whereas output_text is output-only.
-			if jsonutil.StringAt(part, "type") == "output_text" {
+			// User/developer messages use input_text; assistant history uses
+			// output_text. Console rejects input_text on assistant messages.
+			if jsonutil.StringAt(item, "role") != "assistant" && jsonutil.StringAt(part, "type") == "output_text" {
 				part["type"] = "input_text"
 			}
 		}
