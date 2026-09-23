@@ -26,8 +26,8 @@ func TestNormalizeResponsesProviderRequest(t *testing.T) {
 		t.Fatalf("input[0].type = %#v, want message", got)
 	}
 	part := item["content"].([]any)[0].(map[string]any)
-	if got := part["type"]; got != "input_text" {
-		t.Fatalf("assistant history content type = %#v, want input_text", got)
+	if got := part["type"]; got != "output_text" {
+		t.Fatalf("assistant history content type = %#v, want output_text", got)
 	}
 }
 
