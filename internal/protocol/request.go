@@ -55,14 +55,23 @@ func normalizeResponsesProviderRequest(input map[string]any) {
 	if !ok {
 		return
 	}
+	kept := make([]any, 0, len(items))
 	for _, raw := range items {
 		item, ok := raw.(map[string]any)
 		if !ok {
+			kept = append(kept, raw)
 			continue
 		}
 		if jsonutil.StringAt(item, "type") == "" && jsonutil.StringAt(item, "role") != "" {
 			item["type"] = "message"
 		}
+		// Muse Console rejects opaque Responses history/reference items before
+		// generation. Keep visible message items, but omit these unsupported
+		// references at the provider boundary.
+		if kind := jsonutil.StringAt(item, "type"); kind == "item_reference" || kind == "compaction" {
+			continue
+		}
+		kept = append(kept, item)
 		if jsonutil.StringAt(item, "type") != "message" {
 			continue
 		}
@@ -89,6 +98,9 @@ func normalizeResponsesProviderRequest(input map[string]any) {
 				part["type"] = "input_text"
 			}
 		}
+	}
+	if len(kept) != len(items) {
+		input["input"] = kept
 	}
 }
 

@@ -62,3 +62,21 @@ func TestPrepareChatToResponsesNormalizesProviderBoundary(t *testing.T) {
 		t.Fatalf("input[0].type = %#v, want message", got)
 	}
 }
+
+func TestNormalizeResponsesProviderRequestDropsUnsupportedReferences(t *testing.T) {
+	input := map[string]any{
+		"model": "muse-spark-1.3-contributor-free",
+		"input": []any{
+			map[string]any{"type": "item_reference", "id": "item_1"},
+			map[string]any{"type": "message", "role": "user", "content": "hello"},
+		},
+	}
+	out, err := PrepareRequest(Responses, Responses, input, "https://opencode.ai/zen")
+	if err != nil {
+		t.Fatal(err)
+	}
+	items := out["input"].([]any)
+	if len(items) != 1 || items[0].(map[string]any)["type"] != "message" {
+		t.Fatalf("unsupported reference was not removed: %#v", items)
+	}
+}
